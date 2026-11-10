@@ -5,6 +5,7 @@ import org.bson.Document;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.stereotype.Component;
 
+/** ADAPTADOR DE SALUD: comprueba la conectividad real con MongoDB. */
 @Component
 public class MongoHealthAdapter implements DatabaseHealthPort {
     private final MongoTemplate mongoTemplate;
@@ -13,6 +14,7 @@ public class MongoHealthAdapter implements DatabaseHealthPort {
         this.mongoTemplate = mongoTemplate;
     }
 
+    /** PING: devuelve true si MongoDB responde; false si se produce un error de conexión. */
     @Override
     public boolean isConnected() {
         try {

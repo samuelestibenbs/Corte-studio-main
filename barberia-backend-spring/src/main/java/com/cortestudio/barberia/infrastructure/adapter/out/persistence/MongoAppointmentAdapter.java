@@ -12,6 +12,7 @@ import org.springframework.data.mongodb.core.aggregation.Aggregation;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.stereotype.Component;
 
+/** ADAPTADOR MONGO: implementa el puerto de citas usando Spring Data y MongoDB. */
 @Component
 public class MongoAppointmentAdapter implements AppointmentRepositoryPort {
     private final SpringAppointmentRepository repository;
@@ -22,21 +23,25 @@ public class MongoAppointmentAdapter implements AppointmentRepositoryPort {
         this.mongoTemplate = mongoTemplate;
     }
 
+    /** GUARDAR: convierte el modelo de negocio a documento Mongo y devuelve el modelo guardado. */
     @Override
     public Appointment save(Appointment appointment) {
         return toDomain(repository.save(toDocument(appointment)));
     }
 
+    /** CONSULTA: busca las citas de un barbero en una fecha, ordenadas por hora. */
     @Override
     public List<Appointment> findByDateAndBarber(String fecha, String barbero) {
         return repository.findByFechaAndBarberoOrderByHoraAsc(fecha, barbero).stream().map(this::toDomain).toList();
     }
 
+    /** CONSULTA: recupera las citas de un barbero ordenadas cronológicamente. */
     @Override
     public List<Appointment> findByBarber(String barber) {
         return repository.findByBarberoOrderByFechaAscHoraAsc(barber).stream().map(this::toDomain).toList();
     }
 
+    /** AGREGACIÓN: cuenta en MongoDB cuántas citas completadas tiene cada barbero. */
     @Override
     public Map<String, Long> countCompletedByBarber() {
         Aggregation aggregation = Aggregation.newAggregation(
@@ -50,21 +55,25 @@ public class MongoAppointmentAdapter implements AppointmentRepositoryPort {
         return counts;
     }
 
+    /** BÚSQUEDA POR ID: devuelve una cita solo si existe. */
     @Override
     public Optional<Appointment> findById(String id) {
         return repository.findById(id).map(this::toDomain);
     }
 
+    /** ACTUALIZACIÓN: reutiliza el guardado para persistir la cita modificada. */
     @Override
     public Appointment update(Appointment appointment) {
         return save(appointment);
     }
 
+    // MAPEO A PERSISTENCIA: el modelo de dominio se transforma al documento de MongoDB.
     private AppointmentDocument toDocument(Appointment value) {
         return new AppointmentDocument(value.id(), value.clienteNombre(), value.barbero(), value.servicio(),
                 value.fecha(), value.hora(), value.estado());
     }
 
+    // MAPEO AL DOMINIO: el documento recuperado se convierte al modelo usado por la aplicación.
     private Appointment toDomain(AppointmentDocument value) {
         return new Appointment(value.id(), value.clienteNombre(), value.barbero(), value.servicio(),
                 value.fecha(), value.hora(), value.estado());

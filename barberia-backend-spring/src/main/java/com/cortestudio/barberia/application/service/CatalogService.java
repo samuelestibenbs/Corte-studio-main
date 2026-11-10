@@ -9,30 +9,37 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 
+/** CATÁLOGO: reglas de aplicación para consultar y administrar barberos y servicios. */
 public class CatalogService {
+    // PUERTO DE SALIDA: abstrae dónde se guarda el catálogo.
     private final CatalogRepositoryPort catalogs;
 
     public CatalogService(CatalogRepositoryPort catalogs) {
         this.catalogs = catalogs;
     }
 
+    /** CONSULTA E INICIALIZACIÓN: devuelve el catálogo guardado o crea uno inicial si aún no existe. */
     public Catalog getCatalog() {
         return catalogs.find().orElseGet(() -> catalogs.save(defaultCatalog()));
     }
 
+    /** CATÁLOGO PÚBLICO: filtra y devuelve solo los barberos disponibles. */
     public List<Catalog.BarberProfile> getAvailableBarbers() {
         return getCatalog().barberos().stream().filter(Catalog.BarberProfile::disponible).toList();
     }
 
+    /** DATOS PARA RESUMEN: obtiene los nombres de los barberos configurados. */
     public List<String> getBarberNames() {
         return getCatalog().barberos().stream().map(Catalog.BarberProfile::name).toList();
     }
 
+    /** REGLA DE NEGOCIO: confirma que el barbero exista y esté habilitado para reservas. */
     public boolean isBarberAvailable(String name) {
         return getCatalog().barberos().stream()
                 .anyMatch(barber -> barber.disponible() && barber.name().equals(name));
     }
 
+    /** RELACIÓN DE CUENTAS: busca el perfil de barbero vinculado a un correo. */
     public Optional<Catalog.BarberProfile> findBarberByEmail(String email) {
         if (email == null) return Optional.empty();
         return getCatalog().barberos().stream()
@@ -40,6 +47,7 @@ public class CatalogService {
                 .findFirst();
     }
 
+    /** ALTA DE BARBERO: valida campos y evita duplicar correo o nombre antes de persistir. */
     public Catalog.BarberProfile addBarber(NewBarber barber) {
         if (barber == null || blank(barber.name()) || blank(barber.email()) || blank(barber.specialty())
                 || blank(barber.bio()) || blank(barber.photoLabel()) || blank(barber.photoSrc())) {
@@ -60,6 +68,7 @@ public class CatalogService {
         return created;
     }
 
+    /** ACTUALIZACIÓN: modifica perfil y disponibilidad manteniendo el resto del catálogo. */
     public Catalog.BarberProfile updateBarberProfile(String id, BarberProfileUpdate update) {
         if (update == null || blank(update.specialty()) || blank(update.bio())
                 || blank(update.photoLabel()) || blank(update.photoSrc())) {
@@ -77,6 +86,7 @@ public class CatalogService {
         return updated;
     }
 
+    /** ELIMINACIÓN: remueve el perfil indicado y persiste el catálogo actualizado. */
     public void deleteBarber(String id) {
         Catalog catalog = getCatalog();
         List<Catalog.BarberProfile> barbers = new ArrayList<>(catalog.barberos());
@@ -84,6 +94,7 @@ public class CatalogService {
         catalogs.save(new Catalog(barbers, catalog.servicios()));
     }
 
+    /** ACTUALIZACIÓN DE SERVICIO: valida descripción y precio antes de guardar los cambios. */
     public Catalog.ServiceItem updateService(String id, ServiceUpdate update) {
         if (update == null || blank(update.description())) {
             throw new IllegalArgumentException("Escribe una descripción para el servicio");
@@ -103,6 +114,7 @@ public class CatalogService {
         return updated;
     }
 
+    // BÚSQUEDA: devuelve la posición del barbero o reporta que no existe.
     private int findBarberIndex(List<Catalog.BarberProfile> barbers, String id) {
         for (int index = 0; index < barbers.size(); index++) {
             if (barbers.get(index).id().equals(id)) return index;
@@ -110,6 +122,7 @@ public class CatalogService {
         throw new NotFoundException("No se encontró el barbero");
     }
 
+    // BÚSQUEDA: devuelve la posición del servicio o reporta que no existe.
     private int findServiceIndex(List<Catalog.ServiceItem> services, String id) {
         for (int index = 0; index < services.size(); index++) {
             if (services.get(index).id().equals(id)) return index;
@@ -117,6 +130,7 @@ public class CatalogService {
         throw new NotFoundException("No se encontró el servicio");
     }
 
+    /** DATOS INICIALES: catálogo de ejemplo usado solo cuando todavía no hay uno persistido. */
     private Catalog defaultCatalog() {
         return new Catalog(
                 List.of(
@@ -151,7 +165,8 @@ public class CatalogService {
         return value == null || value.isBlank();
     }
 
-        public record BarberProfileUpdate(String specialty, String bio, String photoLabel, String photoSrc,
+    // DTOs: datos de entrada para operaciones de catálogo; el controlador aplica las validaciones HTTP.
+    public record BarberProfileUpdate(String specialty, String bio, String photoLabel, String photoSrc,
             boolean disponible) {
     }
 

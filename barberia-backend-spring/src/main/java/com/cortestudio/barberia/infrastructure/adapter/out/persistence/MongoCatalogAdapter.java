@@ -5,8 +5,10 @@ import com.cortestudio.barberia.domain.model.Catalog;
 import java.util.Optional;
 import org.springframework.stereotype.Component;
 
+/** ADAPTADOR MONGO: implementa el puerto del catálogo con Spring Data MongoDB. */
 @Component
 public class MongoCatalogAdapter implements CatalogRepositoryPort {
+    // IDENTIFICADOR: el catálogo principal se guarda como un único documento.
     private static final String CATALOG_ID = "principal";
     private final SpringCatalogRepository repository;
 
@@ -14,11 +16,13 @@ public class MongoCatalogAdapter implements CatalogRepositoryPort {
         this.repository = repository;
     }
 
+    /** LECTURA: busca el documento principal y lo transforma al modelo de dominio. */
     @Override
     public Optional<Catalog> find() {
         return repository.findById(CATALOG_ID).map(this::toDomain);
     }
 
+    /** ESCRITURA: convierte barberos y servicios a documentos y guarda el catálogo. */
     @Override
     public Catalog save(Catalog catalog) {
         CatalogDocument document = new CatalogDocument(CATALOG_ID,
@@ -27,16 +31,19 @@ public class MongoCatalogAdapter implements CatalogRepositoryPort {
         return toDomain(repository.save(document));
     }
 
+    // MAPEO: perfil de dominio a estructura embebida de persistencia.
     private CatalogDocument.BarberDocument toDocument(Catalog.BarberProfile barber) {
         return new CatalogDocument.BarberDocument(barber.id(), barber.name(), barber.email(), barber.specialty(),
             barber.bio(), barber.photoLabel(), barber.photoSrc(), barber.disponible());
     }
 
+    // MAPEO: servicio de dominio a estructura embebida de persistencia.
     private CatalogDocument.ServiceDocument toDocument(Catalog.ServiceItem service) {
         return new CatalogDocument.ServiceDocument(service.id(), service.name(), service.description(),
                 service.minutes(), service.price());
     }
 
+    /** COMPATIBILIDAD: reconstruye los modelos de dominio y completa valores heredados si faltan. */
     private Catalog toDomain(CatalogDocument document) {
         return new Catalog(
                 document.barberos().stream().map(barber -> new Catalog.BarberProfile(barber.id(), barber.name(),
@@ -46,6 +53,7 @@ public class MongoCatalogAdapter implements CatalogRepositoryPort {
                         service.description(), service.minutes(), service.price())).toList());
     }
 
+    // DATOS ANTIGUOS: asigna el correo conocido a perfiles previos que aún no lo almacenaban.
     private String legacyBarberEmail(String id) {
         return switch (id) {
             case "mateo" -> "samuel@cortestudio.test";
