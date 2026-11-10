@@ -1,0 +1,212 @@
+<section class="admin-page">
+  <header class="admin-head">
+    <div>
+      <p class="admin-eyebrow">CORTE STUDIO · {{ isBarber() ? 'BARBERÍA' : 'ADMINISTRACIÓN' }}</p>
+      <h1>{{ isBarber() ? 'Mis citas' : 'Cortes realizados' }}</h1>
+      <p class="admin-intro">
+        {{ isBarber() ? 'Consulta tus citas y marca cada corte al terminarlo.' : 'Servicios realizados por cada barbero.' }}
+      </p>
+    </div>
+    <div class="admin-actions">
+      <button class="btn btn--line" type="button" (click)="loadAppointments()" [disabled]="loading()">Actualizar</button>
+      <button class="btn btn--ink" type="button" (click)="logout()">Cerrar sesión</button>
+    </div>
+  </header>
+
+  @if (error()) {
+    <p class="admin-error" role="alert">{{ error() }}</p>
+  }
+
+  @if (isBarber()) {
+    <section class="admin-bookings" aria-labelledby="admin-bookings-title">
+      <div class="admin-section-head">
+        <div>
+          <p class="admin-eyebrow">AGENDA</p>
+          <h2 id="admin-bookings-title">Citas asignadas</h2>
+        </div>
+        <span class="admin-booking-count">{{ appointments().length }} citas</span>
+      </div>
+
+      @if (loading()) {
+        <p class="admin-message" role="status">Cargando tus citas…</p>
+      } @else if (appointments().length === 0) {
+        <p class="admin-message">No tienes citas asignadas.</p>
+      } @else {
+        <div class="admin-table-wrap">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th scope="col">Fecha y hora</th>
+                <th scope="col">Cliente</th>
+                <th scope="col">Servicio</th>
+                <th scope="col">Estado</th>
+                <th scope="col"><span class="visually-hidden">Acción</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (appointment of appointments(); track appointment._id) {
+                <tr>
+                  <td data-label="Fecha y hora">
+                    <strong>{{ formatDate(appointment.fecha) }}</strong>
+                    <span class="admin-time">{{ appointment.hora }}</span>
+                  </td>
+                  <td data-label="Cliente">{{ appointment.clienteNombre }}</td>
+                  <td data-label="Servicio">{{ appointment.servicio }}</td>
+                  <td data-label="Estado">
+                    <span class="admin-status" [class.admin-status--done]="appointment.estado === 'realizada'">
+                      {{ appointment.estado === 'realizada' ? 'Realizada' : 'Reservada' }}
+                    </span>
+                  </td>
+                  <td class="admin-row-action">
+                    <button class="admin-mark" type="button" (click)="markCompleted(appointment)"
+                      [disabled]="appointment.estado === 'realizada' || updatingId() === appointment._id">
+                      {{ updatingId() === appointment._id ? 'Guardando…' : appointment.estado === 'realizada' ? 'Realizada' : 'Marcar realizada' }}
+                    </button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </section>
+  } @else {
+    <section class="admin-stats" aria-label="Cortes realizados por barbero">
+      @if (loading()) {
+        <p class="admin-message" role="status">Cargando resultados…</p>
+      } @else if (summary().length === 0) {
+        <p class="admin-message">No hay barberos configurados.</p>
+      } @else {
+        @for (barber of summary(); track barber.barbero) {
+          <article class="admin-stat">
+            <span>{{ barber.barbero }}</span>
+            <strong>{{ barber.realizadas }}</strong>
+            <small>cortes realizados</small>
+          </article>
+        }
+      }
+    </section>
+
+    <section class="catalog-admin" aria-labelledby="catalog-admin-title">
+      <header class="admin-section-head">
+        <div>
+          <p class="admin-eyebrow">CATÁLOGO</p>
+          <h2 id="catalog-admin-title">Barberos y servicios</h2>
+        </div>
+        <button class="btn btn--line" type="button" (click)="loadCatalog()" [disabled]="catalogLoading()">
+          {{ catalogLoading() ? 'Cargando…' : 'Actualizar catálogo' }}
+        </button>
+      </header>
+
+      @if (catalogLoading()) {
+        <p class="admin-message" role="status">Cargando catálogo…</p>
+      }
+      @if (!catalogLoading()) {
+          @if (catalogActionFeedback(); as feedback) {
+            <p class="catalog-save-feedback" [class.is-error]="feedback.state === 'error'"
+              [attr.role]="feedback.state === 'error' ? 'alert' : 'status'">{{ feedback.message }}</p>
+          }
+          <div class="catalog-group">
+            <h3>Perfiles de barberos</h3>
+            <div class="catalog-grid">
+              @for (barber of catalog().barberos; track barber.id) {
+                <article class="catalog-editor">
+                  <h4>{{ barber.name }}</h4>
+                  <p class="catalog-email">{{ barber.email }}</p>
+                  <img class="catalog-photo" [src]="barber.photoSrc" [alt]="barber.photoLabel" loading="lazy">
+                  <label class="catalog-availability">
+                    <input type="checkbox" [name]="'available-' + barber.id" [(ngModel)]="barber.disponible">
+                    Disponible para reservas
+                  </label>
+                  <label>
+                    Especialidad
+                    <input [name]="'specialty-' + barber.id" [(ngModel)]="barber.specialty" maxlength="80">
+                  </label>
+                  <label>
+                    Descripción
+                    <textarea [name]="'bio-' + barber.id" [(ngModel)]="barber.bio" rows="3" maxlength="300"></textarea>
+                  </label>
+                  <label>
+                    Texto alternativo de la foto
+                    <input [name]="'photo-label-' + barber.id" [(ngModel)]="barber.photoLabel" maxlength="120">
+                  </label>
+                  <label>
+                    Ruta o URL de la foto
+                    <input [name]="'photo-src-' + barber.id" [(ngModel)]="barber.photoSrc" maxlength="300">
+                  </label>
+                  <div class="catalog-editor-actions">
+                    <button class="btn btn--line" type="button" (click)="saveBarber(barber)"
+                      [disabled]="savingBarberId() === barber.id">
+                      {{ savingBarberId() === barber.id ? 'Guardando…' : 'Guardar cambios' }}
+                    </button>
+                    <button class="admin-delete" type="button" (click)="deleteBarber(barber)"
+                      [disabled]="deletingBarberId() === barber.id">
+                      {{ deletingBarberId() === barber.id ? 'Eliminando…' : 'Eliminar barbero' }}
+                    </button>
+                  </div>
+                  @if (barberFeedback()[barber.id]; as feedback) {
+                    <p class="catalog-save-feedback" [class.is-error]="feedback.state === 'error'"
+                      [attr.role]="feedback.state === 'error' ? 'alert' : 'status'">{{ feedback.message }}</p>
+                  }
+              </article>
+            }
+            <form class="catalog-editor catalog-editor--add" (ngSubmit)="addBarber()">
+              <h4>Agregar barbero</h4>
+              <label>Nombre
+                <input name="new-name" [(ngModel)]="newBarber.name" required maxlength="100">
+              </label>
+              <label>Correo de su cuenta
+                <input type="email" name="new-email" [(ngModel)]="newBarber.email" required maxlength="160">
+              </label>
+              <label>Especialidad
+                <input name="new-specialty" [(ngModel)]="newBarber.specialty" required maxlength="80">
+              </label>
+              <label>Descripción
+                <textarea name="new-bio" [(ngModel)]="newBarber.bio" required rows="3" maxlength="300"></textarea>
+              </label>
+              <label>Texto alternativo de la foto
+                <input name="new-photo-label" [(ngModel)]="newBarber.photoLabel" required maxlength="120">
+              </label>
+              <label>Ruta o URL de la foto
+                <input name="new-photo-src" [(ngModel)]="newBarber.photoSrc" required maxlength="300">
+              </label>
+              <button class="btn btn--ink" type="submit" [disabled]="addingBarber()">
+                {{ addingBarber() ? 'Agregando…' : 'Agregar barbero' }}
+              </button>
+            </form>
+          </div>
+        </div>
+
+          <div class="catalog-group">
+            <h3>Servicios</h3>
+            <div class="catalog-services">
+              @for (service of catalog().servicios; track service.id) {
+                <article class="catalog-service">
+                  <div>
+                    <h4>{{ service.name }}</h4>
+                    <p>{{ service.minutes }} min</p>
+                  </div>
+                  <label class="catalog-service-description">
+                    Descripción
+                    <textarea [name]="'description-' + service.id" [(ngModel)]="service.description" rows="3" maxlength="300"></textarea>
+                  </label>
+                  <label>
+                    Precio COP
+                    <input type="number" [name]="'price-' + service.id" [(ngModel)]="service.price" min="1" step="1000">
+                  </label>
+                  <button class="btn btn--line" type="button" (click)="saveService(service)"
+                    [disabled]="savingServiceId() === service.id || service.price < 1">
+                    {{ savingServiceId() === service.id ? 'Guardando…' : 'Guardar servicio' }}
+                  </button>
+                  @if (serviceFeedback()[service.id]; as feedback) {
+                    <p class="catalog-save-feedback" [class.is-error]="feedback.state === 'error'"
+                      [attr.role]="feedback.state === 'error' ? 'alert' : 'status'">{{ feedback.message }}</p>
+                  }
+                </article>
+              }
+            </div>
+          </div>
+      }
+    </section>
+  }
+</section>
